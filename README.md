@@ -1,20 +1,38 @@
-The updated problem statement for this assignment can be found at https://github.com/LS-Computer-Vision/opencv-basics
+The updated problem statement for this assignment can be found at https://github.com/LS-Computer-Vision/image-stitching
 
-# OpenCV Basics
+# Image Stitching
 
-Now we begin with using OpenCV, which is an excellent open source library with all sorts of functionality specially suited for Computer Vision tasks
+We will now turn to image stitching and panoramic stitching using CV techniques, and learn some theory in that process.
 
-OpenCV has bindings in many languages, including C++ and Python. We will be using the Python bindings, since we will deal exclusively with Python
+## Theory
 
-## Resources to get you started
+We need to learn how a camera is typically modelled in Computer Vision.
+For simplicity, we start with a pinhole camera model. There is a small point through which all the rays pass and form an image on the camera plane. Real life cameras are more complex than that, and have complicated lens systems to focus the rays instead of a pinhole, but a pinhole camera actually works quite well to model even real life cameras. We do need to correct for deviations, but that is besides the point. As you will learn, the way we model a pinhole camera is through a matrix called the Camera Matrix. This is often split into two parts, the intrinsic camera matrix (has data about the focal length, pixel lengths etc), and the extrinsic camera matrix (has data about the position and rotation of the camera in the world)
 
-* https://towardsdatascience.com/opencv-complete-beginners-guide-to-master-the-basics-of-computer-vision-with-code-4a1cd0c687f9
-* https://docs.opencv.org/4.5.2/
-	* This is the OpenCV documentation, any time you have a doubt about how to call certain functions or which function does what, this is the site to help you out
-* https://docs.opencv.org/4.5.2/d6/d00/tutorial_py_root.html
-	* Set of official OpenCV tutorials
+The camera matrix is simply a matrix which when multiplied with a 3d point gives a 2d point (ie the 2d coordinates of the projection of the 3d point onto the camera image plane). We often represent 3d points with a 4 vector (4d homogenous coordinates), and 2d points with a 3 vector (3d homogenous coordinates), which makes calculations with matrices much simpler.
 
-* https://www.pyimagesearch.com/2018/07/19/opencv-tutorial-a-guide-to-learn-opencv/
+* http://www.e-cartouche.ch/content_reg/cartouche/graphics/en/html/Transform_learningObject2.html
+	* Intro to homogenous coordinates
+* https://www.cs.usfca.edu/~cruse/math202s11/homocoords.pdf
+	* More detail about homogenous coordinates
+* http://www.cs.cmu.edu/~16385/s17/Slides/11.1_Camera_matrix.pdf
+	* This is a good starter to learn about the camera matrix mathematics
+* https://ksimek.github.io/2012/08/13/introduction/
+	* Some more math behind the decomposition of the camera matrix
+* https://docs.opencv.org/4.5.2/dc/dbb/tutorial_py_calibration.html
+	* Using OpenCV to find the camera matrix of the camera used to click an image (also called camera calibration)
+
+Now we move on to the next part of the theory. What happens when we move our camera position (and orientation), but don't change the camera itself? Simple! Only the extrinsic camera matrix is changed. Therefore, the projection of the 3d point changes simply due to the change in the extrinsic part of the camera matrix, which is tantamount to some matrix multiplications. Thus the transformation of an image from one camera angle to another is simply a matrix multiplication, also called a homography.
+
+* https://en.wikipedia.org/wiki/Homography_(computer_vision)
+	* Homography intro
+* https://docs.opencv.org/4.5.2/d9/dab/tutorial_homography.html
+	* Homography intro with OpenCV code
+
+The way image stitching works is we use some feature detection to find matching parts of the image, and then use that to find a homography which must be the relation between the two camera angles. Once we know that, it is a simple task to reproject the second image onto the first image's camera angle, and then superpose them on top of each other
+
+* https://towardsdatascience.com/image-panorama-stitching-with-opencv-2402bde6b46c
+	* Image stitching using OpenCV
 
 ## Part 0: Setup
 
@@ -26,72 +44,67 @@ Open up your terminal and execute the following commands:
 	source venv/bin/activate   # For OSX/Linux Users
 	pip install -r requirements.txt
 
-## Part 1: ```Image Editor```
-We will attempt to build a very simple image editor with OpenCV.
-The application needs to have the following features
+## Part 1: Image Stitching Basics
+Write a script called ```stitcher.py``` that takes takes as input the path to 2 images and outputs an image which is the stitched version of the two input images
 
-* The application should run indefinitely until closed. This means that you should have an infinite loop (or a loop that detects closing condition) of some sorts, where in each iteration the updated image is displayed
-	* That's essentially how we display videos using OpenCV, we display each frame as an image, every loop iteration
+	python assets/campus/ # Stitches the two images in the assets/campus directory and creates the output as assets/campus/output.jpg
 
-* 
-		python editor.py image.jpg 1280 720
+You can roughly follow these steps
 
-	Should launch an OpenCV window with the image, with the dimensions 1280 x 720. The width and height parameters can be kept optional (with some default values if not stated)
-	* Use the ```argparse``` module to make your life easier and parse command line arguments easily
-* If the image file does not exist, launch a window with the image completely white
+* Perform feature detection using an algorithm of your choice to find keypoints in the two images. One popular algorithm to perform feature detection is ORB. Others can be SIFT, SURF etc.
 
-* The user can edit the image by clicking on it to place points. The points placed will have the color red, green, or blue, depending on what the ```current color selection ```is
+* Try to find matching keypoints. OpenCV has some methods to do this too, you can use the brute force matcher, or something called the K-nearest neighbors matcher.
 
-* The ``current color selection`` can be changed to 
-	* red by pressing the ```R``` key
-	* green by pressing the ```G``` key
-	* blue by pressing the ```B``` key
+* Once the matching keypoints have been found, use an algorithm like RANSAC to estimate a homography which transforms the keypoints of one image to the keypoints of the other. This is a good estimation of the homography between the two camera orientations which were used to click the images
 
-* Print the ```current color selection``` value to the console every time it is changed
+* Use the homography to warp the second image into the perspective of the first.
 
-* Pressing ```Q``` should save the image to the file and exit
+* Now that you have a version of both images from the perspective of the first's camera angle, paste the second image onto the first. This gives you the resultant larger image which contains parts of both images, from the perspective of the first's camera angle
 
-## Part 2: ```Video Chat Application```
+There are some things to look out for
 
-We will now harness OpenCV's power to make the frontend of a video chat application.
+* To perform the warping successfully, you need to know the dimensions of the final image. The final image will have black portions where neither the first nor the second image has parts, and its dimensions will be larger than both the images.
 
-* https://www.geeksforgeeks.org/python-opencv-capture-video-from-camera/
-	* This will help in understanding how video from webcam (and video in general) can be captured and displayed in OpenCV
+* Keep in mind that OpenCV's ```(0,0)``` means the top left corner. Sometimes the warped second image may have some part of the image going well into negative coordinates. You may need to translate both images by an appropriate amount such that the final image has no loss of data.
 
-* 
-		python video.py video.mp4 1280 720
-		
-	Should launch an OpenCV window with the video playing (loop it around once the video ends), with the dimensions 1280x720. Again, the dimensions can be kept optional arguments
+* You need some mathematics to calculate these dimensions and the translation required, so be careful while doing this. OpenCV will not automatically do this for you
 
-* Display your webcam feed in a small rectangle on the upper left corner on top of the already playing video
-	* If your webcam is not working for some reason, you can use a default video feed
+## Part 2: ```Seam Removal```
 
-* Your webcam feed should have a red border around it
-* There should be the following modes to display the webcam feed
-	* RGB mode (default), select by pressing ```1```
-	* Grayscale mode, select by pressing ```2```
-	* Blurred RGB mode, select by pressing ```3```
+You may have noticed that the final image has a seam. This is because of differences in ambient light levels of the same region in the two images, which leads to a visible seam.
 
-* Draw a small blue cross at the center of the screen
+Find methods that help in making the final image as seamless as possible.
 
-* Pressing ```Q``` should quit the application
+Some ideas may be histogram equalization to make light levels equal. Another idea which has been explored, as this instead of pasting the pixels of the second image onto the first's, try to take a weighted average of the two image's pixels in the overlap region, the weight being a function of the distance of the pixel to the corresponding image centre.
+
+This is your chance to explore and research, and most importantly implement!
+
+## Part 3: ```Analysis```
+
+Write down the theory of all the algorithms that you used in ```explanation.pdf```. This should include the feature detection algorithms like ORB, keypoint matching algorithms like KNN, homography finding algorithms like RANSAC etc. Any non trivial algorithm you use, you have to write the theory behind it.
 
 ## Submission Instructions
+
+You can add any other test images if you feel like it. It is better if your code works against a large sample of test images!
 
 Your assignment repository (https://github.com/LS-Computer-Vision/opencv-basics-{username}) should have the following contents pushed to it
 
 	repository root
 	├── assets
-	│   ├── videos
-	│   │   └── Videos you need
-	│   └── images
-	│       └── Images you need
+	│   ├── campus
+	│   │   ├── Campus Images
+	│   │   └── output.jpg
+	│   ├── yard
+	│   │   ├── Yard Images
+	│   │   └── output.jpg
+	│   └── Any other test
+	│       ├── Test Images
+	│       └── output.jpg
 	├── .gitignore
 	├── README.md
 	├── requirements.txt
-	├── video.py
-	├── editor.py
+	├── sticher.py
 	└── (Not pushed, ignored by git) venv
 
 ## Deadline
-The deadline for this assignment is kept at 18 July 11:59 PM
+The deadline for this assignment is kept at 22 August 11:59 PM
