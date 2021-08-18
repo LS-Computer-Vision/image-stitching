@@ -69,6 +69,11 @@ There are some things to look out for
 
 * You need some mathematics to calculate these dimensions and the translation required, so be careful while doing this. OpenCV will not automatically do this for you
 
+### Example output
+
+![Imgur](https://imgur.com/yQzFr6E.png)
+![Imgur](https://imgur.com/fczx5ZQ.png)
+
 ## Part 2: ```Seam Removal```
 
 You may have noticed that the final image has a seam. This is because of differences in ambient light levels of the same region in the two images, which leads to a visible seam.
@@ -93,6 +98,9 @@ Your assignment repository (https://github.com/LS-Computer-Vision/image-stitchin
 	├── assets
 	│   ├── campus
 	│   │   ├── Campus Images
+	│   │   └── output.jpg
+	│   ├── roof
+	│   │   ├── Roof Images
 	│   │   └── output.jpg
 	│   ├── yard
 	│   │   ├── Yard Images
