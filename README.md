@@ -87,7 +87,7 @@ Write down the theory of all the algorithms that you used in ```explanation.pdf`
 
 You can add any other test images if you feel like it. It is better if your code works against a large sample of test images!
 
-Your assignment repository (https://github.com/LS-Computer-Vision/opencv-basics-{username}) should have the following contents pushed to it
+Your assignment repository (https://github.com/LS-Computer-Vision/image-stitching-{username}) should have the following contents pushed to it
 
 	repository root
 	├── assets
